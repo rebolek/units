@@ -22,6 +22,16 @@ latest: #(
 	exchangeratesapi.io:	[%latest]
 )
 
+use-base: #(
+	exchangeratesapi.io:	[%?base= base-cur]
+	fixer.io:				[%?base= base-cur]
+	openexchangerates.org:	[%?base= base-cur]
+)
+
+use-symbols: #(
+
+)
+
 rate-data: none
 
 convert-rates: func [
@@ -35,6 +45,10 @@ convert-rates: func [
 		out/:cur: rate / rates/:cur
 	]
 	out
+]
+
+set 'clear-rates-cache func [][
+	foreach [server file] cache [delete file]
 ]
 
 set 'make-rates-table func [
@@ -51,9 +65,12 @@ set 'make-rates-table func [
 ]
 
 set 'get-rates func [
+	"Download rates for server's base currency"
 	/from
 		server	[word!]
-	/force
+	/force	"Force download, do not use cache"
+	/base
+		base-cur	"Use different base currency"
 ][
 	server: any [server 'exchangeratesapi.io]
 ; -- caching
@@ -62,8 +79,10 @@ set 'get-rates func [
 		not force
 		return load cache/:server
 	]
-; -- load current rates
+; -- construct request
 	link: append copy base-url/:server latest/:server
+	if base [repend link bind use-base/:server 'base-cur]
+; -- load current rates
 	data: load-json read link
 	data/base: to word! data/base
 	save cache/:server data
