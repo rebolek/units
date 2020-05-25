@@ -5,7 +5,6 @@ Red[
 		Features:
 			"support historical data"
 		Internal:
-			"move servers to block/map"
 	]
 ]
 
@@ -24,36 +23,36 @@ server-proto: context [
 	check:		func [value][value]
 ]
 
-#TODO "move servers to block/map"
-
-exchangeratesapi.io: make server-proto [
-	base-url:	https://api.exchangeratesapi.io/
-	cache:		%rates-exraa.red
-]
-
-fixer.io: make server-proto [
-	base-url:	http://data.fixer.io/api/
-	use-key?:	true
-	cache:		%rates-fixer.red
-	latest:		[%latest?access_key= api-key]
-	check:		func [value][
-		unless value/success [
-			do make error! value/error/type
-		]
-		value
+servers: make map! reduce [
+	'exchangeratesapi.io make server-proto [
+		base-url:	https://api.exchangeratesapi.io/
+		cache:		%rates-exraa.red
 	]
-]
 
-openexchangerates.org: make server-proto [
-	base-url:	https://openexchangerates.org/api/
-	use-key?:	true
-	cache:		%rates-opexa.red
-	latest:		[%latest.json?app_id= api-key]
-	check:		func [value][
-		if value/error [
-			do make error! value/description
+	'fixer.io make server-proto [
+		base-url:	http://data.fixer.io/api/
+		use-key?:	true
+		cache:		%rates-fixer.red
+		latest:		[%latest?access_key= api-key]
+		check:		func [value][
+			unless value/success [
+				do make error! value/error/type
+			]
+			value
 		]
-		value
+	]
+
+	'openexchangerates.org make server-proto [
+		base-url:	https://openexchangerates.org/api/
+		use-key?:	true
+		cache:		%rates-opexa.red
+		latest:		[%latest.json?app_id= api-key]
+		check:		func [value][
+			if value/error [
+				do make error! value/description
+			]
+			value
+		]
 	]
 ]
 
@@ -87,13 +86,13 @@ set 'make-rates-table func [
 	out
 ]
 
-set 'load-api-keys func [
+load-api-keys: func [
 	/keys
 ][
 	if exists? keys: %api-key.red [
 		foreach [server key] load keys [
 			print [mold server mold key]
-			server: get in self to word! server
+			server: select servers server
 			server/api-key: key
 		]
 	]
@@ -164,7 +163,7 @@ set 'get-rates func [
 	/local link
 ][
 	server: any [server 'exchangeratesapi.io]
-	server: get bind server self
+	server: select servers server
 ; -- check for API key
 	all [
 		server/use-key?
