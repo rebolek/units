@@ -1,4 +1,13 @@
-Red[]
+Red[
+	Title: "Currency rates - download currency rates from multiple sources"
+	Author: "Boleslav Březovský"
+	To-Do: [
+		Features:
+			"support historical data"
+		Internal:
+			"move servers to block/map"
+	]
+]
 
 .: context [
 
@@ -7,6 +16,7 @@ Red[]
 server-proto: context [
 	base-url:
 	api-key:
+	use-key?:
 	cache:		none
 	latest:		%latest
 	base:		['base value]
@@ -23,6 +33,7 @@ exchangeratesapi.io: make server-proto [
 
 fixer.io: make server-proto [
 	base-url:	http://data.fixer.io/api/
+	use-key?:	true
 	cache:		%rates-fixer.red
 	latest:		[%latest?access_key= api-key]
 	check:		func [value][
@@ -35,6 +46,7 @@ fixer.io: make server-proto [
 
 openexchangerates.org: make server-proto [
 	base-url:	https://openexchangerates.org/api/
+	use-key?:	true
 	cache:		%rates-opexa.red
 	latest:		[%latest.json?app_id= api-key]
 	check:		func [value][
@@ -44,8 +56,6 @@ openexchangerates.org: make server-proto [
 		value
 	]
 ]
-
-rate-data: none
 
 convert-rates: func [
 	currency	[any-word!]
@@ -155,6 +165,12 @@ set 'get-rates func [
 ][
 	server: any [server 'exchangeratesapi.io]
 	server: get bind server self
+; -- check for API key
+	all [
+		server/use-key?
+		not server/api-key
+		do make error! rejoin ["Server " server/base-url " requires API key but none has been provided."]
+	]
 ; -- caching
 	all [
 		exists? server/cache
